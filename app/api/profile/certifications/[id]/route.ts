@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { certification_type_id, title, attachment_type, file_url, url, effective_date, end_date, status } = body;
 
@@ -23,7 +24,7 @@ export async function PUT(
     const { data: cert } = await supabase
       .from('certifications')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -57,7 +58,7 @@ export async function PUT(
     const { data, error } = await supabase
       .from('certifications')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         certification_type:certification_types(id, name, description)
@@ -78,7 +79,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -86,13 +87,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify certification belongs to user
     const { data: cert } = await supabase
       .from('certifications')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -103,7 +105,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('certifications')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting certification:', error);
