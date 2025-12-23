@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,13 +14,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify certification belongs to user
     const { data: cert } = await supabase
       .from('certifications')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -37,7 +38,7 @@ export async function POST(
 
     // Upload to Supabase Storage
     const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${params.id}-${Date.now()}.${fileExt}`;
+    const fileName = `${user.id}/${id}-${Date.now()}.${fileExt}`;
     const filePath = `certifications/${fileName}`;
 
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -65,7 +66,7 @@ export async function POST(
         attachment_type: 'file',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         certification_type:certification_types(id, name, description)
