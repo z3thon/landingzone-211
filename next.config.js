@@ -21,6 +21,8 @@ const nextConfig = {
     }
     return config
   },
+  // Empty turbopack config to allow webpack to be used
+  turbopack: {},
 }
 
 module.exports = nextConfig
