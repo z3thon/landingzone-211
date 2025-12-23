@@ -22,12 +22,9 @@ const nextConfig = {
     return config
   },
   // Disable Turbopack for production builds to avoid Discord.js issues
+  // Turbopack doesn't handle native Node.js modules well
   experimental: {
-    turbo: {
-      resolveAlias: {
-        'zlib-sync': false,
-      },
-    },
+    turbo: false,
   },
 }
 
