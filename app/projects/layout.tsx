@@ -3,6 +3,8 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Layout({
   children,
 }: {

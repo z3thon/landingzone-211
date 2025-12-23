@@ -6,6 +6,8 @@ import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Navigation from '@/components/Navigation'
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   // Get current user from Supabase Auth
   let user = null

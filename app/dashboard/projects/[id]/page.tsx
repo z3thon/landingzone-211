@@ -5,6 +5,8 @@ import Link from 'next/link';
 import GlassCard from '@/components/GlassCard';
 import GlassButton from '@/components/GlassButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProjectDetailPage({
   params,
 }: {
