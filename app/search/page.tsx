@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Link from 'next/link'
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [query, setQuery] = useState(searchParams.get('q') || '')
@@ -166,6 +166,20 @@ export default function SearchPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen p-8 pt-24">
+        <GlassCard>
+          <h1 className="text-3xl font-bold mb-4">Loading...</h1>
+        </GlassCard>
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   )
 }
 

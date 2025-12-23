@@ -7,14 +7,15 @@ import GlassCard from '@/components/GlassCard';
 export default async function ApplicationDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const user = await getCurrentUser();
   if (!user) return null;
 
   const supabase = createServiceRoleClient();
 
-  const { data: application } = await supabase
+  const { data: applicationData } = await supabase
     .from('project_approvals')
     .select(`
       *,
@@ -29,9 +30,11 @@ export default async function ApplicationDetailPage({
         organizer:profiles!projects_organizer_id_fkey(id, name, avatar_url)
       )
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('profile_id', user.id)
     .single();
+
+  const application = applicationData as { id: string; approved: boolean; approved_at: string | null; [key: string]: any } | null;
 
   if (!application) {
     notFound();

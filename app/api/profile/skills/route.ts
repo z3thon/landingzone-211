@@ -87,8 +87,9 @@ export async function POST(request: Request) {
     }
 
     // Create new skill
-    const { data, error } = await supabase
+    const insertQuery = supabase
       .from('skills')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .insert({
         profile_id: user.id,
         skill_type_id,
@@ -99,11 +100,14 @@ export async function POST(request: Request) {
         skill_type:skill_types(id, name, description, is_language, language_abbreviation, native_name)
       `)
       .single();
+    const { data: skillData, error } = await insertQuery;
 
     if (error) {
       console.error('Error creating skill:', error);
       return NextResponse.json({ error: 'Failed to create skill' }, { status: 500 });
     }
+
+    const data = skillData as { id: string; [key: string]: any };
 
     // Create default visibility for all user's communities (visible by default)
     const { data: communities } = await supabase
@@ -119,7 +123,11 @@ export async function POST(request: Request) {
         visible: true,
       }));
 
-      await supabase.from('community_skill_visibility').insert(visibilityInserts);
+      const visibilityInsertQuery = supabase
+        .from('community_skill_visibility')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .insert(visibilityInserts);
+      await visibilityInsertQuery;
     }
 
     return NextResponse.json(data);

@@ -19,19 +19,22 @@ export default async function Layout({
   const supabase = createServiceRoleClient();
 
   // Get token balance
-  const { data: tokenBalance } = await supabase
+  const { data: tokenBalanceData } = await supabase
     .from('token_balances')
     .select('balance_usd')
     .eq('profile_id', user.id)
     .single();
+
+  const typedProfile = profile as { name?: string; avatar_url?: string } | null;
+  const tokenBalance = tokenBalanceData as { balance_usd: number } | null;
 
   return (
     <DashboardLayout
       user={{
         id: user.id,
         email: user.email,
-        name: profile?.name,
-        avatar_url: profile?.avatar_url,
+        name: typedProfile?.name,
+        avatar_url: typedProfile?.avatar_url,
       }}
       tokenBalance={tokenBalance?.balance_usd || 0}
     >

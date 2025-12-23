@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { industry_type_id, from_date, to_date } = body;
 
@@ -23,7 +24,7 @@ export async function PUT(
     const { data: industry } = await supabase
       .from('industries')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -39,15 +40,17 @@ export async function PUT(
     if (from_date) updateData.from_date = from_date;
     if (to_date !== undefined) updateData.to_date = to_date;
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('industries')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         industry_type:industries_types(id, name, abbreviation)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating industry:', error);
@@ -63,7 +66,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -71,13 +74,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify industry belongs to user
     const { data: industry } = await supabase
       .from('industries')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -88,7 +92,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('industries')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting industry:', error);

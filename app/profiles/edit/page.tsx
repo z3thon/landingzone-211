@@ -40,7 +40,7 @@ export default function EditProfilePage() {
         return
       }
 
-      const { data, error } = await supabase
+      const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
@@ -50,6 +50,22 @@ export default function EditProfilePage() {
         console.error('Error loading profile:', error)
         return
       }
+
+      const data = profileData as {
+        name: string | null;
+        bio: string | null;
+        email: string | null;
+        phone: string | null;
+        street_1: string | null;
+        street_2: string | null;
+        city: string | null;
+        state_region: string | null;
+        postal_code: string | null;
+        country: string | null;
+        [key: string]: any;
+      } | null;
+
+      if (!data) return;
 
       setProfile(data)
       setFormData({
@@ -87,10 +103,12 @@ export default function EditProfilePage() {
         throw new Error('Not authenticated')
       }
 
-      const { error } = await supabase
+      const updateQuery = supabase
         .from('profiles')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .update(formData)
         .eq('id', user.id)
+      const { error } = await updateQuery
 
       if (error) throw error
 

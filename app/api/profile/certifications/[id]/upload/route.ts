@@ -59,8 +59,9 @@ export async function POST(
       .getPublicUrl(filePath);
 
     // Update certification with file URL
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('certifications')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update({
         file_url: urlData.publicUrl,
         attachment_type: 'file',
@@ -72,6 +73,7 @@ export async function POST(
         certification_type:certification_types(id, name, description)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating certification:', error);

@@ -71,10 +71,18 @@ async function startBot() {
     return;
   }
 
-  console.log(`Found ${communities.length} communities with bot enabled`);
+  const typedCommunities = communities as {
+    id: string;
+    discord_server_id: string;
+    coach_channel_name: string;
+    coach_role_id: string;
+    coach_channel_id: string;
+  }[];
+
+  console.log(`Found ${typedCommunities.length} communities with bot enabled`);
 
   // Register each community
-  for (const community of communities) {
+  for (const community of typedCommunities) {
     try {
       await bot.registerGuild({
         guildId: community.discord_server_id!,

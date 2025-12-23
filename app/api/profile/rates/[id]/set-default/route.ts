@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,13 +14,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify rate belongs to user
     const { data: rate } = await supabase
       .from('rates')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -29,10 +30,12 @@ export async function PUT(
     }
 
     // Update profile default_rate_id
-    const { error } = await supabase
+    const updateQuery = supabase
       .from('profiles')
-      .update({ default_rate_id: params.id })
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+      .update({ default_rate_id: id })
       .eq('id', user.id);
+    const { error } = await updateQuery;
 
     if (error) {
       console.error('Error setting default rate:', error);

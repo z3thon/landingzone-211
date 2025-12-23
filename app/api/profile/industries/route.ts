@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         industry_type_id,
         from_date,
         to_date: to_date || null,
-      })
+      } as any)
       .select(`
         *,
         industry_type:industries_types(id, name, abbreviation)

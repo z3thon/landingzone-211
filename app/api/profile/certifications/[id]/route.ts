@@ -55,8 +55,9 @@ export async function PUT(
     if (end_date !== undefined) updateData.end_date = end_date;
     if (status) updateData.status = status;
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('certifications')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
       .eq('id', id)
       .select(`
@@ -64,6 +65,7 @@ export async function PUT(
         certification_type:certification_types(id, name, description)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating certification:', error);

@@ -54,11 +54,12 @@ writeLog(`.env.local exists: ${envExists}`);
 writeDebugLog({location:'start-server.js:42',message:'.env.local check',data:{exists:envExists},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'});
 
 if (!envExists) {
-  writeLog('Creating .env.local...');
-  fs.writeFileSync(envPath, `NEXT_PUBLIC_SUPABASE_URL=https://ktkgkjgwyqdizoliitsy.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_2aFw0mxy1JtKFXJcghZfcw_WVXPanjK
-`);
-  writeLog('.env.local created');
+  writeLog('ERROR: .env.local file not found!');
+  writeLog('Please create .env.local with your Supabase credentials:');
+  writeLog('  NEXT_PUBLIC_SUPABASE_URL=your_supabase_url');
+  writeLog('  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key');
+  writeDebugLog({location:'start-server.js:57',message:'.env.local missing - exiting',timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'});
+  process.exit(1);
 }
 
 // Check 3: Port 3000

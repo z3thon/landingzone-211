@@ -10,12 +10,12 @@ echo ""
 if [ ! -f .env.local ]; then
   echo "✗ ERROR: .env.local file not found!"
   echo ""
-  echo "Creating .env.local with Supabase credentials..."
-  cat > .env.local << 'ENVFILE'
-NEXT_PUBLIC_SUPABASE_URL=https://ktkgkjgwyqdizoliitsy.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_2aFw0mxy1JtKFXJcghZfcw_WVXPanjK
-ENVFILE
-  echo "✓ Created .env.local"
+  echo "Please create .env.local with your Supabase credentials:"
+  echo "  NEXT_PUBLIC_SUPABASE_URL=your_supabase_url"
+  echo "  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key"
+  echo ""
+  echo "Exiting..."
+  exit 1
 else
   echo "✓ .env.local exists"
 fi

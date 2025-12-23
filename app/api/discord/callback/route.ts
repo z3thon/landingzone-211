@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceRoleClient();
     const { error: dbError } = await supabase
       .from('discord_users')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .upsert({
         profile_id: user.id,
         discord_user_id: discordUser.id,

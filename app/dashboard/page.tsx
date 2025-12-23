@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   ]);
 
   // Get escrow holdings for coach's call sessions
-  const callSessionIds = coachCallSessions.data?.map(cs => cs.id) || [];
+  const callSessionIds = coachCallSessions.data?.map((cs: any) => cs.id) || [];
   const escrowResult = callSessionIds.length > 0
     ? await supabase
         .from('escrow_holdings')
@@ -57,12 +57,28 @@ export default async function DashboardPage() {
 
   const totalPayouts = payoutsResult.data?.reduce((sum: number, p: any) => sum + (p.net_amount || 0), 0) || 0;
   const totalEscrow = escrowResult.data?.reduce((sum: number, e: any) => sum + (e.amount || 0), 0) || 0;
+  const tokenBalanceData = tokenBalanceResult.data as { balance_usd: number } | null;
+
+  // Get user's projects count
+  const { count: projectsCount } = await supabase
+    .from('projects')
+    .select('id', { count: 'exact', head: true })
+    .eq('organizer_id', user.id);
+
+  // Get pending applications count
+  const { count: pendingApplicationsCount } = await supabase
+    .from('project_approvals')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', user.id)
+    .eq('approved', false);
 
   const stats = {
+    projects: projectsCount || 0,
+    pendingApplications: pendingApplicationsCount || 0,
     completedCalls: callSessionsResult.count || 0,
     activeVoiceChannels: voiceChannelsResult.count || 0,
     reviews: reviewsResult.count || 0,
-    tokenBalance: tokenBalanceResult.data?.balance_usd || 0,
+    tokenBalance: tokenBalanceData?.balance_usd || 0,
     totalEarnings: totalPayouts,
     pendingEscrow: totalEscrow,
   };

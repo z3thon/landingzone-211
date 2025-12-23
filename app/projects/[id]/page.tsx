@@ -7,12 +7,13 @@ import Link from 'next/link'
 export default async function ProjectPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params;
   const supabase = await createClient()
   
   // Get project with related data
-  const { data: project, error } = await supabase
+  const { data: projectData, error } = await supabase
     .from('projects')
     .select(`
       *,
@@ -20,18 +21,26 @@ export default async function ProjectPage({
       company:companies(*),
       community:communities(id, name, logo_url)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
-  if (error || !project) {
+  if (error || !projectData) {
     notFound()
+  }
+
+  const project = projectData as {
+    id: string;
+    organizer_id: string;
+    name: string;
+    description: string | null;
+    [key: string]: any;
   }
 
   // Get project outlines
   const { data: outlines } = await supabase
     .from('project_outlines')
     .select('*')
-    .eq('project_id', params.id)
+    .eq('project_id', id)
     .order('order_number', { ascending: true })
 
   // Get project approvals
@@ -43,7 +52,7 @@ export default async function ProjectPage({
       role_type:role_types(*),
       rate:rates(*)
     `)
-    .eq('project_id', params.id)
+    .eq('project_id', id)
 
   // Get needed roles
   const { data: neededRoles } = await supabase
@@ -52,7 +61,7 @@ export default async function ProjectPage({
       *,
       role_type:role_types(*)
     `)
-    .eq('project_id', params.id)
+    .eq('project_id', id)
 
   // Get needed skills
   const { data: neededSkills } = await supabase
@@ -61,13 +70,13 @@ export default async function ProjectPage({
       *,
       skill_type:skill_types(*)
     `)
-    .eq('project_id', params.id)
+    .eq('project_id', id)
 
   // Get project files/URLs
   const { data: files } = await supabase
     .from('project_files_urls')
     .select('*')
-    .eq('project_id', params.id)
+    .eq('project_id', id)
 
   // Check if current user is organizer
   const {
@@ -119,7 +128,7 @@ export default async function ProjectPage({
                 {project.status}
               </span>
               {isOrganizer && (
-                <Link href={`/projects/${params.id}/edit`}>
+                <Link href={`/projects/${id}/edit`}>
                   <GlassButton variant="outline">Edit</GlassButton>
                 </Link>
               )}
@@ -262,7 +271,7 @@ export default async function ProjectPage({
           <GlassCard>
             <div className="text-center">
               <p className="mb-4">Interested in joining this project?</p>
-              <Link href={`/projects/${params.id}/apply`}>
+              <Link href={`/projects/${id}/apply`}>
                 <GlassButton variant="primary">Apply to Join</GlassButton>
               </Link>
             </div>

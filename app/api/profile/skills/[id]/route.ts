@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { description } = body;
 
@@ -23,7 +24,7 @@ export async function PUT(
     const { data: skill } = await supabase
       .from('skills')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -32,18 +33,20 @@ export async function PUT(
     }
 
     // Update skill
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('skills')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update({
         description: description || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         skill_type:skill_types(id, name, description, is_language, language_abbreviation, native_name)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating skill:', error);
@@ -59,7 +62,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -67,13 +70,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify skill belongs to user
     const { data: skill } = await supabase
       .from('skills')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -85,7 +89,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('skills')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting skill:', error);

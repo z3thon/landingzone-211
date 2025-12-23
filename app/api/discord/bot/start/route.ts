@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       .eq('community_id', community_id)
       .single();
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (!membership || !['owner', 'admin'].includes((membership as { role: string }).role)) {
       return NextResponse.json(
         { error: 'You must be an admin or owner of this community' },
         { status: 403 }
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // For new setups, we need the guild ID from the request
     const { discord_server_id } = body;
     
-    let guildId = discord_server_id;
+    let guildId: string | null = discord_server_id || null;
     
     if (!guildId) {
       // Try to get from existing community
@@ -61,8 +61,9 @@ export async function POST(request: Request) {
         .eq('id', community_id)
         .single();
 
-      if (community?.discord_server_id) {
-        guildId = community.discord_server_id;
+      if (community) {
+        const typedCommunity = community as { discord_server_id: string | null };
+        guildId = typedCommunity.discord_server_id;
       }
     }
 
@@ -244,7 +245,7 @@ export async function POST(request: Request) {
     // #endregion
     
     await bot.registerGuild({
-      guildId: guildId,
+      guildId: guildId!, // Non-null assertion: we've already validated guildId is not null above
       communityId: community_id,
       coachChannelName: channelName,
       coachRoleId: setupResult.roleId,
@@ -253,7 +254,7 @@ export async function POST(request: Request) {
 
     // Update community bot configuration - ensure discord_server_id is always saved
     const updateData: any = {
-      discord_server_id: guildId,
+      discord_server_id: guildId!, // Non-null assertion: we've already validated guildId is not null above
       bot_enabled: true,
       coach_role_id: setupResult.roleId,
     };
@@ -268,10 +269,12 @@ export async function POST(request: Request) {
     fetch('http://127.0.0.1:7245/ingest/afa96a29-4e2d-478b-a0f9-c9eaf21816cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/discord/bot/start/route.ts:251',message:'Updating database',data:{community_id, updateData},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-start-1',hypothesisId:'K'})}).catch(()=>{});
     // #endregion
 
-    const { error: updateError } = await supabase
+    const updateQuery = supabase
       .from('communities')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
       .eq('id', community_id);
+    const { error: updateError } = await updateQuery;
 
     // #region agent log
     fetch('http://127.0.0.1:7245/ingest/afa96a29-4e2d-478b-a0f9-c9eaf21816cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/discord/bot/start/route.ts:257',message:'Database update result',data:{success:!updateError, errorCode:updateError?.code, errorMessage:updateError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-start-1',hypothesisId:'L'})}).catch(()=>{});
@@ -279,10 +282,12 @@ export async function POST(request: Request) {
 
     // If bot columns don't exist, at least save discord_server_id
     if (updateError && (updateError.code === '42703' || updateError.code === 'PGRST204')) {
-      const simpleUpdate = await supabase
+      const simpleUpdateQuery = supabase
         .from('communities')
-        .update({ discord_server_id: guildId })
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .update({ discord_server_id: guildId! }) // Non-null assertion: we've already validated guildId is not null above
         .eq('id', community_id);
+      const simpleUpdate = await simpleUpdateQuery;
       
       if (simpleUpdate.error) {
         console.error('Error updating community discord_server_id:', simpleUpdate.error);

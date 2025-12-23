@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         .eq('community_id', community_id)
         .single();
 
-      if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      if (!membership || !['owner', 'admin'].includes((membership as { role: string }).role)) {
         return NextResponse.json(
           { error: 'You must be an admin or owner of this community' },
           { status: 403 }
@@ -54,20 +54,20 @@ export async function POST(request: Request) {
     }
 
     // Get community Discord server ID and coach role ID
-    const { data: community } = await supabase
+    const { data: community, error: communityError } = await supabase
       .from('communities')
       .select('discord_server_id, coach_role_id')
       .eq('id', community_id)
       .single();
 
-    if (!community || !community.discord_server_id) {
+    if (communityError || !community || !(community as { discord_server_id: string | null }).discord_server_id) {
       return NextResponse.json(
         { error: 'Community does not have a Discord server configured' },
         { status: 400 }
       );
     }
 
-    if (!community.coach_role_id) {
+    if (!(community as { coach_role_id: string | null }).coach_role_id) {
       return NextResponse.json(
         { error: 'Coach role not set up for this community. Please start the bot first.' },
         { status: 400 }
@@ -109,15 +109,15 @@ export async function POST(request: Request) {
     let success = false;
     if (assign) {
       success = await bot.assignCoachRole(
-        community.discord_server_id,
-        discordUser.discord_user_id,
-        community.coach_role_id
+        (community as { discord_server_id: string }).discord_server_id,
+        (discordUser as { discord_user_id: string }).discord_user_id,
+        (community as { coach_role_id: string }).coach_role_id
       );
     } else {
       success = await bot.removeCoachRole(
-        community.discord_server_id,
-        discordUser.discord_user_id,
-        community.coach_role_id
+        (community as { discord_server_id: string }).discord_server_id,
+        (discordUser as { discord_user_id: string }).discord_user_id,
+        (community as { coach_role_id: string }).coach_role_id
       );
     }
 

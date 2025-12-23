@@ -5,19 +5,32 @@ import GlassCard from '@/components/GlassCard'
 export default async function ProfilePage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params;
   const supabase = await createClient()
   
   // Get profile
-  const { data: profile, error } = await supabase
+  const { data: profileData, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
-  if (error || !profile) {
+  if (error || !profileData) {
     notFound()
+  }
+
+  const profile = profileData as {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+    email: string | null;
+    city: string | null;
+    country: string | null;
+    available: boolean;
+    [key: string]: any;
   }
 
   // Get profile skills
@@ -27,7 +40,7 @@ export default async function ProfilePage({
       *,
       skill_type:skill_types(*)
     `)
-    .eq('profile_id', params.id)
+    .eq('profile_id', id)
 
   // Get certifications
   const { data: certifications } = await supabase
@@ -36,7 +49,7 @@ export default async function ProfilePage({
       *,
       certification_type:certification_types(*)
     `)
-    .eq('profile_id', params.id)
+    .eq('profile_id', id)
 
   // Get rates
   const { data: rates } = await supabase
@@ -45,7 +58,7 @@ export default async function ProfilePage({
       *,
       rate_type:rate_types(*)
     `)
-    .eq('profile_id', params.id)
+    .eq('profile_id', id)
     .eq('status', 'active')
 
   // Get reviews
@@ -55,7 +68,7 @@ export default async function ProfilePage({
       *,
       reviewer:profiles!reviews_reviewer_profile_id_fkey(id, name, avatar_url)
     `)
-    .eq('reviewee_profile_id', params.id)
+    .eq('reviewee_profile_id', id)
     .eq('is_private', false)
     .order('created_at', { ascending: false })
     .limit(10)
@@ -71,7 +84,7 @@ export default async function ProfilePage({
         skill_type:skill_types(*)
       )
     `)
-    .eq('endorsee_profile_id', params.id)
+    .eq('endorsee_profile_id', id)
     .order('created_at', { ascending: false })
     .limit(20)
 

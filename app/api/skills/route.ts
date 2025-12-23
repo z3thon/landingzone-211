@@ -109,11 +109,13 @@ export async function DELETE(request: Request) {
     }
 
     // Check ownership
-    const { data: skill } = await supabase
+    const { data: skillData } = await supabase
       .from('skills')
       .select('profile_id')
       .eq('id', skillId)
       .single()
+
+    const skill = skillData as { profile_id: string } | null
 
     if (!skill || skill.profile_id !== user.id) {
       return NextResponse.json(

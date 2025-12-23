@@ -61,7 +61,8 @@ export async function searchProjects(filters: SearchFilters) {
       .in('skill_type_id', filters.skills)
 
     if (projectSkills && projectSkills.length > 0) {
-      const projectIds = projectSkills.map(ps => ps.project_id)
+      const typedProjectSkills = projectSkills as { project_id: string; [key: string]: any }[]
+      const projectIds = typedProjectSkills.map(ps => ps.project_id)
       query = query.in('id', projectIds)
     } else {
       // No projects match - return empty

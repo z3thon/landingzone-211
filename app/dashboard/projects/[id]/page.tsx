@@ -8,23 +8,26 @@ import GlassButton from '@/components/GlassButton';
 export default async function ProjectDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const user = await getCurrentUser();
   if (!user) return null;
 
   const supabase = createServiceRoleClient();
 
-  const { data: project } = await supabase
+  const { data: projectData } = await supabase
     .from('projects')
     .select(`
       *,
       community:communities(id, name, logo_url),
       company:companies(id, name)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('organizer_id', user.id)
     .single();
+
+  const project = projectData as { id: string; name: string; description: string; [key: string]: any } | null;
 
   if (!project) {
     notFound();
@@ -36,13 +39,13 @@ export default async function ProjectDetailPage({
       *,
       profile:profiles(id, name, avatar_url, email)
     `)
-    .eq('project_id', params.id)
+    .eq('project_id', id)
     .order('created_at', { ascending: false });
 
   const { data: outlines } = await supabase
     .from('project_outlines')
     .select('*')
-    .eq('project_id', params.id)
+    .eq('project_id', id)
     .order('order_number', { ascending: true });
 
   return (

@@ -2,7 +2,10 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-const secretKey = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+const secretKey = process.env.SESSION_SECRET;
+if (!secretKey) {
+  throw new Error('SESSION_SECRET environment variable is required. Please set it in your .env.local file.');
+}
 const key = new TextEncoder().encode(secretKey);
 
 export interface SessionPayload {
@@ -12,7 +15,13 @@ export interface SessionPayload {
 }
 
 export async function encrypt(payload: SessionPayload): Promise<string> {
-  return await new SignJWT(payload)
+  // Convert Date to ISO string for JWT serialization
+  const jwtPayload = {
+    userId: payload.userId,
+    email: payload.email,
+    expiresAt: payload.expiresAt.toISOString(),
+  };
+  return await new SignJWT(jwtPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
@@ -24,7 +33,12 @@ export async function decrypt(session: string): Promise<SessionPayload | null> {
     const { payload } = await jwtVerify(session, key, {
       algorithms: ['HS256'],
     });
-    return payload as SessionPayload;
+    const typedPayload = payload as { userId: string; email?: string; expiresAt: string };
+    return {
+      userId: typedPayload.userId,
+      email: typedPayload.email,
+      expiresAt: new Date(typedPayload.expiresAt),
+    };
   } catch (error) {
     console.error('Session decryption error:', error);
     return null;

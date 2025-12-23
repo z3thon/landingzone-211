@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -20,13 +20,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify rate belongs to user
     const { data: rate } = await supabase
       .from('rates')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -35,10 +36,12 @@ export async function PUT(
     }
 
     // Update profile coaching_rate_id
-    const { error } = await supabase
+    const updateQuery = supabase
       .from('profiles')
-      .update({ coaching_rate_id: params.id })
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+      .update({ coaching_rate_id: id })
       .eq('id', user.id);
+    const { error } = await updateQuery;
 
     if (error) {
       console.error('Error setting coaching rate:', error);
@@ -78,20 +81,21 @@ export async function PUT(
         if (discordUser) {
           // Assign role in each community
           for (const membership of memberships) {
-            const community = membership.community as any;
+            const typedMembership = membership as { community_id: string; community: { bot_enabled: boolean; discord_server_id: string | null; coach_role_id: string | null } };
+            const community = typedMembership.community;
             if (
               community.bot_enabled &&
               community.discord_server_id &&
               community.coach_role_id
             ) {
               try {
-                await bot.assignCoachRole(
-                  community.discord_server_id,
-                  discordUser.discord_user_id,
-                  community.coach_role_id
-                );
+                  await bot.assignCoachRole(
+                    community.discord_server_id!,
+                    (discordUser as { discord_user_id: string }).discord_user_id,
+                    community.coach_role_id!
+                  );
               } catch (error) {
-                console.error(`Failed to assign coach role in community ${membership.community_id}:`, error);
+                console.error(`Failed to assign coach role in community ${typedMembership.community_id}:`, error);
               }
             }
           }

@@ -120,13 +120,20 @@ export async function DELETE(request: Request) {
     }
 
     // Check ownership
-    const { data: certification } = await supabase
+    const { data: certification, error: certError } = await supabase
       .from('certifications')
       .select('profile_id')
       .eq('id', certificationId)
       .single()
 
-    if (!certification || certification.profile_id !== user.id) {
+    if (certError || !certification) {
+      return NextResponse.json(
+        { error: 'Certification not found' },
+        { status: 404 }
+      )
+    }
+
+    if ((certification as { profile_id: string }).profile_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

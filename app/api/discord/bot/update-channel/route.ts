@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       .eq('community_id', community_id)
       .single();
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (!membership || !['owner', 'admin'].includes((membership as { role: string }).role)) {
       return NextResponse.json(
         { error: 'You must be an admin or owner of this community' },
         { status: 403 }
@@ -137,8 +137,9 @@ export async function POST(request: Request) {
         }
         
         // Create the community
-        const createResult = await supabase
+        const insertQuery = supabase
           .from('communities')
+          // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
           .insert({
             id: community_id,
             name: guildName,
@@ -146,11 +147,12 @@ export async function POST(request: Request) {
           })
           .select('discord_server_id')
           .single();
+        const createResult = await insertQuery;
         
         if (createResult.error && createResult.error.code !== '23505') { // 23505 = duplicate key (already exists)
           console.error('Error creating community:', createResult.error);
           return NextResponse.json(
-            { error: 'Failed to create community in database', details: createResult.error.message },
+            { error: 'Failed to create community in database', code: 'DATABASE_ERROR' },
             { status: 500 }
           );
         }
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
         // For other errors, still return not found but log the error
         console.error('Error querying community:', queryError);
         return NextResponse.json(
-          { error: 'Community not found or database error', details: queryError?.message },
+          { error: 'Community not found or database error', code: 'DATABASE_ERROR' },
           { status: 404 }
         );
       }
@@ -178,10 +180,12 @@ export async function POST(request: Request) {
     if (!guildId && discord_server_id) {
       guildId = discord_server_id;
       // Save it to the database
-      await supabase
+      const updateQuery = supabase
         .from('communities')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .update({ discord_server_id: discord_server_id })
         .eq('id', community_id);
+      await updateQuery;
     }
 
     if (!guildId) {
@@ -316,18 +320,22 @@ export async function POST(request: Request) {
     };
 
     // Update with bot columns (migration should be applied now)
-    const updateResult = await supabase
+    const updateQuery = supabase
       .from('communities')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
       .eq('id', community_id);
+    const updateResult = await updateQuery;
 
     // Handle missing columns gracefully (fallback if migration not applied)
     if (updateResult.error && (updateResult.error.code === '42703' || updateResult.error.code === 'PGRST204')) {
       // Columns don't exist - at least save discord_server_id
-      const simpleUpdate = await supabase
+      const simpleUpdateQuery = supabase
         .from('communities')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .update({ discord_server_id: guildId })
         .eq('id', community_id);
+      const simpleUpdate = await simpleUpdateQuery;
       
       if (simpleUpdate.error) {
         console.error('Error updating discord_server_id:', simpleUpdate.error);
@@ -336,7 +344,7 @@ export async function POST(request: Request) {
     } else if (updateResult.error) {
       console.error('Error updating community:', updateResult.error);
       return NextResponse.json(
-        { error: 'Failed to update database', details: updateResult.error.message },
+        { error: 'Failed to update database', code: 'DATABASE_ERROR' },
         { status: 500 }
       );
     }

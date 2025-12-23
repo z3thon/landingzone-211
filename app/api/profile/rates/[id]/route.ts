@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -20,6 +20,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const {
       rate_type_id,
@@ -37,7 +38,7 @@ export async function PUT(
     const { data: rate } = await supabase
       .from('rates')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -57,15 +58,17 @@ export async function PUT(
     if (memo !== undefined) updateData.memo = memo;
     if (status) updateData.status = status;
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('rates')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         rate_type:rate_types(id, name, description)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating rate:', error);
@@ -81,7 +84,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -89,13 +92,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify rate belongs to user
     const { data: rate } = await supabase
       .from('rates')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -104,10 +108,12 @@ export async function DELETE(
     }
 
     // Archive instead of delete (soft delete)
-    const { error } = await supabase
+    const archiveQuery = supabase
       .from('rates')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update({ status: 'archived', updated_at: new Date().toISOString() })
-      .eq('id', params.id);
+      .eq('id', id);
+    const { error } = await archiveQuery;
 
     if (error) {
       console.error('Error archiving rate:', error);
@@ -122,19 +128,25 @@ export async function DELETE(
       .single();
 
     const updates: any = {};
-    if (profile?.default_rate_id === params.id) {
+    const typedProfile = profile as { default_rate_id: string | null; coaching_rate_id: string | null } | null;
+    if (typedProfile?.default_rate_id === id) {
       updates.default_rate_id = null;
     }
-    if (profile?.coaching_rate_id === params.id) {
+    if (typedProfile?.coaching_rate_id === id) {
       updates.coaching_rate_id = null;
     }
 
     if (Object.keys(updates).length > 0) {
-      await supabase.from('profiles').update(updates).eq('id', user.id);
+      const profileUpdateQuery = supabase
+        .from('profiles')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .update(updates)
+        .eq('id', user.id);
+      await profileUpdateQuery;
     }
 
     // If coaching rate was removed, remove coach role from all communities
-    if (profile?.coaching_rate_id === params.id) {
+    if (typedProfile?.coaching_rate_id === id) {
       const { data: memberships } = await supabase
         .from('community_members')
         .select(`
@@ -167,7 +179,8 @@ export async function DELETE(
           if (discordUser) {
             // Remove role from each community
             for (const membership of memberships) {
-              const community = membership.community as any;
+              const typedMembership = membership as { community_id: string; community: { bot_enabled: boolean; discord_server_id: string | null; coach_role_id: string | null } };
+              const community = typedMembership.community;
               if (
                 community.bot_enabled &&
                 community.discord_server_id &&
@@ -175,12 +188,12 @@ export async function DELETE(
               ) {
                 try {
                   await bot.removeCoachRole(
-                    community.discord_server_id,
-                    discordUser.discord_user_id,
-                    community.coach_role_id
+                    community.discord_server_id!,
+                    (discordUser as { discord_user_id: string }).discord_user_id,
+                    community.coach_role_id!
                   );
                 } catch (error) {
-                  console.error(`Failed to remove coach role in community ${membership.community_id}:`, error);
+                  console.error(`Failed to remove coach role in community ${typedMembership.community_id}:`, error);
                 }
               }
             }

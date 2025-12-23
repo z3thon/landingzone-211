@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       .eq('community_id', community_id)
       .single();
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (!membership || !['owner', 'admin'].includes((membership as { role: string }).role)) {
       return NextResponse.json(
         { error: 'You must be an admin or owner of this community' },
         { status: 403 }
@@ -45,13 +45,13 @@ export async function POST(request: Request) {
     }
 
     // Get community Discord server ID
-    const { data: community } = await supabase
+    const { data: community, error: communityError } = await supabase
       .from('communities')
       .select('discord_server_id')
       .eq('id', community_id)
       .single();
 
-    if (!community || !community.discord_server_id) {
+    if (communityError || !community || !(community as { discord_server_id: string | null }).discord_server_id) {
       return NextResponse.json(
         { error: 'Community does not have a Discord server configured' },
         { status: 400 }
@@ -62,15 +62,18 @@ export async function POST(request: Request) {
     const bot = await getBotInstance();
 
     // Unregister guild from bot
-    await bot.unregisterGuild(community.discord_server_id);
+    const typedCommunity = community as { discord_server_id: string };
+    await bot.unregisterGuild(typedCommunity.discord_server_id);
 
     // Update community bot configuration
-    const { error: updateError } = await supabase
+    const updateQuery = supabase
       .from('communities')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update({
         bot_enabled: false,
       })
       .eq('id', community_id);
+    const { error: updateError } = await updateQuery;
 
     if (updateError) {
       console.error('Error updating community bot config:', updateError);

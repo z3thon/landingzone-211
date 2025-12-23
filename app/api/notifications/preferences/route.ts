@@ -43,7 +43,8 @@ export async function GET() {
       frequency: 'immediate', // immediate, daily, weekly
     };
 
-    return NextResponse.json(data?.notification_preferences || defaultPreferences);
+    const typedData = data as { notification_preferences: any } | null;
+    return NextResponse.json(typedData?.notification_preferences || defaultPreferences);
   } catch (error) {
     console.error('Notification preferences API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -62,10 +63,12 @@ export async function PUT(request: Request) {
 
     const supabase = createServiceRoleClient();
     
-    const { error } = await supabase
+    const updateQuery = supabase
       .from('profiles')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update({ notification_preferences: preferences })
       .eq('id', user.id);
+    const { error } = await updateQuery;
 
     if (error) {
       console.error('Error updating notification preferences:', error);

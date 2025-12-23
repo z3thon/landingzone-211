@@ -14,11 +14,13 @@ export async function GET() {
     const supabase = createServiceRoleClient();
     
     // Get user's profile to check default/coaching rates
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('default_rate_id, coaching_rate_id')
       .eq('id', user.id)
       .single();
+
+    const profile = profileData as { default_rate_id: string | null; coaching_rate_id: string | null } | null;
 
     // Get all rates with types
     const { data: rates, error } = await supabase
@@ -78,15 +80,18 @@ export async function POST(request: Request) {
     const supabase = createServiceRoleClient();
 
     // Get current default/coaching rates if setting new ones
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('default_rate_id, coaching_rate_id')
       .eq('id', user.id)
       .single();
+    
+    const profile = profileData as { default_rate_id: string | null; coaching_rate_id: string | null } | null;
 
     // Create new rate
-    const { data: newRate, error } = await supabase
+    const insertQuery = supabase
       .from('rates')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .insert({
         profile_id: user.id,
         rate_type_id,
@@ -102,11 +107,14 @@ export async function POST(request: Request) {
         rate_type:rate_types(id, name, description)
       `)
       .single();
+    const { data: newRateData, error } = await insertQuery;
 
     if (error) {
       console.error('Error creating rate:', error);
       return NextResponse.json({ error: 'Failed to create rate' }, { status: 500 });
     }
+
+    const newRate = newRateData as { id: string; [key: string]: any };
 
     // Update profile references if needed
     const updates: any = {};
@@ -118,7 +126,12 @@ export async function POST(request: Request) {
     }
 
     if (Object.keys(updates).length > 0) {
-      await supabase.from('profiles').update(updates).eq('id', user.id);
+      const profileUpdateQuery = supabase
+        .from('profiles')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .update(updates)
+        .eq('id', user.id);
+      await profileUpdateQuery;
     }
 
     return NextResponse.json({ ...newRate, is_default_rate: is_default, is_coaching_rate: is_coaching });

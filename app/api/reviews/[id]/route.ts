@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { review_text, is_private, is_anonymous } = body;
 
@@ -27,7 +28,7 @@ export async function PUT(
     const { data: review } = await supabase
       .from('reviews')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('reviewer_profile_id', user.id)
       .single();
 
@@ -35,21 +36,23 @@ export async function PUT(
       return NextResponse.json({ error: 'Review not found' }, { status: 404 });
     }
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('reviews')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update({
         review_text,
         is_private: is_private || false,
         is_anonymous: is_anonymous || false,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         reviewee:profiles!reviews_reviewee_profile_id_fkey(id, name, avatar_url),
         reviewer:profiles!reviews_reviewer_profile_id_fkey(id, name, avatar_url)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating review:', error);
@@ -65,7 +68,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -73,13 +76,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify review belongs to user
     const { data: review } = await supabase
       .from('reviews')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('reviewer_profile_id', user.id)
       .single();
 
@@ -90,7 +94,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('reviews')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting review:', error);

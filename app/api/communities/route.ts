@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         .eq('profile_id', memberId)
 
       if (memberships && memberships.length > 0) {
-        const communityIds = memberships.map(m => m.community_id)
+        const communityIds = memberships.map((m: any) => m.community_id)
         query = query.in('id', communityIds)
       } else {
         return NextResponse.json({ data: [], count: 0 })
@@ -73,14 +73,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
+    const user = currentUser
     const supabase = createServiceRoleClient()
     const body = await request.json()
 
@@ -91,20 +92,20 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (communityError) throw communityError
+    if (communityError || !community) throw communityError || new Error('Failed to create community')
 
     // Add creator as owner
     const { error: memberError } = await supabase
       .from('community_members')
       .insert({
         profile_id: user.id,
-        community_id: community.id,
+        community_id: (community as { id: string }).id,
         role: 'owner',
-      })
+      } as any)
 
     if (memberError) {
       // Rollback community creation
-      await supabase.from('communities').delete().eq('id', community.id)
+      await supabase.from('communities').delete().eq('id', (community as { id: string }).id)
       throw memberError
     }
 
@@ -140,26 +141,27 @@ export async function PATCH(request: Request) {
     }
 
     // Check if user is owner or admin
-    const { data: membership } = await supabase
+    const { data: membership, error: membershipError } = await supabase
       .from('community_members')
       .select('role')
       .eq('community_id', communityId)
       .eq('profile_id', user.id)
       .single()
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (membershipError || !membership || !['owner', 'admin'].includes((membership as { role: string }).role)) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase
       .from('communities')
+      // @ts-ignore - Supabase type inference issue with Next.js 16
       .update(body)
       .eq('id', communityId)
       .select()
-      .single()
+      .single())
 
     if (error) throw error
 

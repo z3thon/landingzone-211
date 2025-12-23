@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     const migrationSQL = readFileSync(migrationPath, 'utf-8');
 
     // Execute the migration
-    const { error } = await supabase.rpc('exec_sql', { sql: migrationSQL });
+    // @ts-ignore - Supabase RPC type issue
+    const { error } = await supabase.rpc('exec_sql', { sql: migrationSQL } as any);
 
     if (error) {
       // Try direct execution if RPC doesn't work
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
         .filter(s => s.length > 0 && !s.startsWith('--'));
 
       for (const statement of statements) {
-        const { error: stmtError } = await supabase.rpc('exec_sql', { sql: statement + ';' });
+        // @ts-ignore - Supabase RPC type issue
+        const { error: stmtError } = await supabase.rpc('exec_sql', { sql: statement + ';' } as any);
         if (stmtError) {
           console.error('Error executing migration statement:', stmtError);
           // Try using raw query if available

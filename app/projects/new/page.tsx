@@ -37,17 +37,21 @@ export default function NewProjectPage() {
       setUserId(user.id)
 
       // Get communities user is a member of
-      const { data: memberships } = await supabase
+      const { data: membershipsData } = await supabase
         .from('community_members')
         .select('community_id, role')
         .eq('profile_id', user.id)
 
+      const memberships = membershipsData as { community_id: string; role: string }[] | null;
+
       if (memberships && memberships.length > 0) {
         const communityIds = memberships.map(m => m.community_id)
-        const { data } = await supabase
+        const { data: communitiesData } = await supabase
           .from('communities')
           .select('*')
           .in('id', communityIds)
+
+        const data = communitiesData as { id: string; name: string; [key: string]: any }[] | null;
 
         if (data) {
           setCommunities(data)
@@ -85,16 +89,21 @@ export default function NewProjectPage() {
       }
 
       // Use Supabase user ID as organizer_id
-      const { data, error } = await supabase
+      const insertQuery = supabase
         .from('projects')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .insert({
           organizer_id: userId,
           ...formData,
         })
         .select()
         .single()
+      const { data: projectData, error } = await insertQuery
 
       if (error) throw error
+
+      const data = projectData as { id: string; [key: string]: any } | null
+      if (!data) throw new Error('Failed to create project')
 
       router.push(`/projects/${data.id}`)
     } catch (error: any) {

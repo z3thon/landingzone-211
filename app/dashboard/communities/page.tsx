@@ -770,8 +770,9 @@ export default function CommunitiesPage() {
                           {item.community && (
                             <div className="flex items-center gap-2">
                               {(() => {
-                                const selectedChannel = item.community.coach_channel_id 
-                                  ? communityChannels[item.communityId!]?.find(ch => ch.id === item.community.coach_channel_id)
+                                const community = item.community;
+                                const selectedChannel = community.coach_channel_id 
+                                  ? communityChannels[item.communityId!]?.find(ch => ch.id === community.coach_channel_id)
                                   : null;
                                 const displayText = selectedChannel 
                                   ? (selectedChannel.parent ? `${selectedChannel.parent.name} / ${selectedChannel.name}` : selectedChannel.name)
@@ -783,7 +784,7 @@ export default function CommunitiesPage() {
                                 
                                 return (
                                   <select
-                                    value={item.community.coach_channel_id || ''}
+                                    value={community.coach_channel_id || ''}
                                     onChange={(e) => {
                                       if (e.target.value) {
                                         handleChannelChange(item.communityId!, e.target.value, item.id, item.name);
@@ -792,7 +793,7 @@ export default function CommunitiesPage() {
                                     disabled={updatingChannel === item.communityId || repairing === item.communityId}
                                     className="glass-input px-3 py-2 text-sm rounded-xl text-gray-900 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-white/30 focus:bg-white/30"
                                     style={{
-                                      width: item.community.coach_channel_id 
+                                      width: community.coach_channel_id 
                                         ? `${calculatedWidth}px`
                                         : '200px',
                                       minWidth: '200px',

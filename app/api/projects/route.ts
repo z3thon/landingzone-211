@@ -131,11 +131,13 @@ export async function PATCH(request: Request) {
     }
 
     // Check if user is the organizer
-    const { data: project } = await supabase
+    const { data: projectData } = await supabase
       .from('projects')
       .select('organizer_id')
       .eq('id', projectId)
       .single()
+
+    const project = projectData as { organizer_id: string } | null
 
     if (!project || project.organizer_id !== user.id) {
       return NextResponse.json(
@@ -144,12 +146,14 @@ export async function PATCH(request: Request) {
       )
     }
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('projects')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(body)
       .eq('id', projectId)
       .select()
       .single()
+    const { data, error } = await updateQuery
 
     if (error) throw error
 

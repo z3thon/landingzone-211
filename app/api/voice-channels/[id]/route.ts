@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { channel_name, billing_rate_per_hour, active } = body;
 
@@ -23,7 +24,7 @@ export async function PUT(
     const { data: channel } = await supabase
       .from('voice_channels')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('coach_profile_id', user.id)
       .single();
 
@@ -39,15 +40,17 @@ export async function PUT(
     if (billing_rate_per_hour !== undefined) updateData.billing_rate_per_hour = parseFloat(billing_rate_per_hour);
     if (active !== undefined) updateData.active = active;
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('voice_channels')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         community:communities(id, name, logo_url)
       `)
       .single();
+    const { data, error } = await updateQuery;
 
     if (error) {
       console.error('Error updating voice channel:', error);
@@ -63,7 +66,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -71,13 +74,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const supabase = createServiceRoleClient();
 
     // Verify voice channel belongs to user
     const { data: channel } = await supabase
       .from('voice_channels')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('coach_profile_id', user.id)
       .single();
 
@@ -88,7 +92,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('voice_channels')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting voice channel:', error);

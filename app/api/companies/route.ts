@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
     const supabase = createServiceRoleClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase
       .from('companies')
       .insert({
         name,
@@ -58,9 +58,9 @@ export async function POST(request: Request) {
         website: website || null,
         phone: phone || null,
         description: description || null,
-      })
+      } as any)
       .select()
-      .single();
+      .single());
 
     if (error) {
       console.error('Error creating company:', error);

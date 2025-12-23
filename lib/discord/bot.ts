@@ -9,7 +9,7 @@ interface BotConfig {
   communityId: string;
   coachChannelName: string; // Name of the "Coach" voice channel to monitor
   coachRoleId: string; // Discord role ID for authorized coaches
-  coachChannelId: string; // Discord channel ID of the coach voice channel
+  coachChannelId: string | null; // Discord channel ID of the coach voice channel (null if not configured)
 }
 
 interface ActiveSession {
@@ -752,35 +752,42 @@ class LandingZoneBot {
       }
 
       // Check if user has coaching rate set
-      const { data: profile } = await this.supabase
+      const typedDiscordUser = discordUser as { profile_id: string; [key: string]: any };
+      const { data: profileData } = await this.supabase
         .from('profiles')
         .select('id, coaching_rate_id')
-        .eq('id', discordUser.profile_id)
+        .eq('id', typedDiscordUser.profile_id)
         .single();
+
+      const profile = profileData as { id: string; coaching_rate_id: string | null } | null;
 
       if (!profile || !profile.coaching_rate_id) {
         return null;
       }
 
       // Get the coaching rate
-      const { data: rate } = await this.supabase
+      const { data: rateData } = await this.supabase
         .from('rates')
         .select('rate_per_hour')
         .eq('id', profile.coaching_rate_id)
         .eq('status', 'active')
         .single();
 
+      const rate = rateData as { rate_per_hour: number } | null;
+
       if (!rate) {
         return null;
       }
 
       // Verify user is member of the community
-      const { data: membership } = await this.supabase
+      const { data: membershipData } = await this.supabase
         .from('community_members')
         .select('id')
         .eq('profile_id', profile.id)
         .eq('community_id', communityId)
         .single();
+
+      const membership = membershipData as { id: string } | null;
 
       if (!membership) {
         return null;
@@ -801,11 +808,13 @@ class LandingZoneBot {
    */
   private async getProfileIdFromDiscordId(discordUserId: string): Promise<string | null> {
     try {
-      const { data: discordUser } = await this.supabase
+      const { data: discordUserData } = await this.supabase
         .from('discord_users')
         .select('profile_id')
         .eq('discord_user_id', discordUserId)
         .single();
+
+      const discordUser = discordUserData as { profile_id: string } | null;
 
       return discordUser?.profile_id || null;
     } catch (error) {
@@ -824,11 +833,13 @@ class LandingZoneBot {
 
     try {
       // Get voice channel record
-      const { data: voiceChannel } = await this.supabase
+      const { data: voiceChannelData } = await this.supabase
         .from('voice_channels')
         .select('id')
         .eq('discord_channel_id', session.voiceChannelId)
         .single();
+
+      const voiceChannel = voiceChannelData as { id: string } | null;
 
       if (!voiceChannel) {
         console.error('Voice channel not found in database');
@@ -836,8 +847,9 @@ class LandingZoneBot {
       }
 
       // Create call session
-      const { data: callSession, error } = await this.supabase
+      const insertQuery = this.supabase
         .from('call_sessions')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .insert({
           voice_channel_id: voiceChannel.id,
           coach_profile_id: session.coachProfileId,
@@ -847,9 +859,16 @@ class LandingZoneBot {
         })
         .select('id')
         .single();
+      const { data: callSessionData, error } = await insertQuery;
 
-      if (error || !callSession) {
+      if (error) {
         console.error('Error creating call session:', error);
+        return;
+      }
+
+      const callSession = callSessionData as { id: string } | null;
+      if (!callSession) {
+        console.error('Failed to create call session');
         return;
       }
 
@@ -884,14 +903,16 @@ class LandingZoneBot {
           (endedAt.getTime() - session.startedAt.getTime()) / 60000
         );
 
-        const { error } = await this.supabase
+        const updateQuery = this.supabase
           .from('call_sessions')
+          // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
           .update({
             ended_at: endedAt.toISOString(),
             duration_minutes: durationMinutes,
             status: 'completed',
           })
           .eq('id', session.callSessionId);
+        const { error } = await updateQuery;
 
         if (error) {
           console.error('Error updating call session:', error);
@@ -963,14 +984,18 @@ class LandingZoneBot {
     // This will be called by the API endpoint
     // For now, we'll create the voice channel record directly
     try {
-      const { error } = await this.supabase.from('voice_channels').insert({
-        community_id: communityId,
-        discord_channel_id: data.discordChannelId,
-        channel_name: data.channelName,
-        coach_profile_id: data.coachProfileId,
-        billing_rate_per_hour: data.hourlyRate,
-        active: true,
-      });
+      const insertQuery = this.supabase
+        .from('voice_channels')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .insert({
+          community_id: communityId,
+          discord_channel_id: data.discordChannelId,
+          channel_name: data.channelName,
+          coach_profile_id: data.coachProfileId,
+          billing_rate_per_hour: data.hourlyRate,
+          active: true,
+        });
+      const { error } = await insertQuery;
 
       if (error) {
         console.error('Error creating voice channel record:', error);

@@ -28,11 +28,12 @@ export async function GET() {
     }
 
     // Check if we have an access token
-    if (!discordUser.access_token) {
+    const typedDiscordUser = discordUser as { access_token: string | null; refresh_token: string | null; discord_user_id: string };
+    if (!typedDiscordUser.access_token) {
       console.error('Discord user found but no access token:', {
         profile_id: user.id,
-        discord_user_id: discordUser.discord_user_id,
-        has_refresh_token: !!discordUser.refresh_token,
+        discord_user_id: typedDiscordUser.discord_user_id,
+        has_refresh_token: !!typedDiscordUser.refresh_token,
       });
       return NextResponse.json({ 
         error: 'Discord access token not available. Please reconnect your Discord account through Settings.',
@@ -74,27 +75,29 @@ export async function GET() {
     // Fetch user's Discord guilds
     let guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: {
-        'Authorization': `Bearer ${discordUser.access_token}`,
+        'Authorization': `Bearer ${typedDiscordUser.access_token}`,
         'Content-Type': 'application/json',
       },
     });
 
     // If token expired, try refreshing
-    if (guildsResponse.status === 401 && discordUser.refresh_token) {
+    if (guildsResponse.status === 401 && typedDiscordUser.refresh_token) {
       try {
         console.log('Discord token expired, attempting refresh...');
-        const newTokenData = await refreshDiscordToken(discordUser.refresh_token);
+        const newTokenData = await refreshDiscordToken(typedDiscordUser.refresh_token);
         
         // Update stored token
-        const { error: updateError } = await supabase
+        const updateQuery = supabase
           .from('discord_users')
+          // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
           .update({
             access_token: newTokenData.access_token,
-            refresh_token: newTokenData.refresh_token || discordUser.refresh_token,
+            refresh_token: newTokenData.refresh_token || typedDiscordUser.refresh_token,
             token_expires_at: newTokenData.expires_in ? new Date(Date.now() + newTokenData.expires_in * 1000).toISOString() : null,
             updated_at: new Date().toISOString(),
           })
           .eq('profile_id', user.id);
+        const { error: updateError } = await updateQuery;
 
         if (updateError) {
           console.error('Error updating refreshed token:', updateError);
@@ -122,19 +125,19 @@ export async function GET() {
         status: guildsResponse.status,
         statusText: guildsResponse.statusText,
         error: errorText,
-        hasToken: !!discordUser.access_token,
-        hasRefreshToken: !!discordUser.refresh_token,
+        hasToken: !!typedDiscordUser.access_token,
+        hasRefreshToken: !!typedDiscordUser.refresh_token,
       });
       
       if (guildsResponse.status === 401) {
         return NextResponse.json({ 
           error: 'Discord token expired. Please reconnect your Discord account.',
-          details: errorText 
+          code: 'TOKEN_EXPIRED'
         }, { status: 401 });
       }
       return NextResponse.json({ 
         error: 'Failed to fetch Discord guilds',
-        details: errorText,
+        code: 'DISCORD_API_ERROR',
         status: guildsResponse.status
       }, { status: 500 });
     }
@@ -172,9 +175,10 @@ export async function GET() {
     // Create a map of discord_server_id to community
     const communityMap = new Map();
     if (communities) {
-      communities.forEach((community) => {
-        if (community.discord_server_id) {
-          communityMap.set(community.discord_server_id, community);
+      communities.forEach((community: any) => {
+        const typedCommunity = community as { discord_server_id: string | null; id: string; name: string };
+        if (typedCommunity.discord_server_id) {
+          communityMap.set(typedCommunity.discord_server_id, typedCommunity);
         }
       });
     }

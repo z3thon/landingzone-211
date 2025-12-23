@@ -15,14 +15,15 @@ else
   echo "✓ Dependencies already installed"
 fi
 
-# 2. Create .env.local if missing
+# 2. Check .env.local exists
 if [ ! -f ".env.local" ]; then
-  echo "Creating .env.local..."
-  cat > .env.local << 'EOF'
-NEXT_PUBLIC_SUPABASE_URL=https://ktkgkjgwyqdizoliitsy.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_2aFw0mxy1JtKFXJcghZfcw_WVXPanjK
-EOF
-  echo "✓ .env.local created"
+  echo "⚠ WARNING: .env.local file not found!"
+  echo "Please create .env.local with your Supabase credentials:"
+  echo "  NEXT_PUBLIC_SUPABASE_URL=your_supabase_url"
+  echo "  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key"
+  echo ""
+  echo "Exiting..."
+  exit 1
 else
   echo "✓ .env.local exists"
 fi

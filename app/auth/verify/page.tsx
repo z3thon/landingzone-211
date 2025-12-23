@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import GlassCard from '@/components/GlassCard'
 
-export default function VerifyPage() {
+function VerifyContent() {
   const [status, setStatus] = useState<'checking' | 'verified' | 'error'>('checking')
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -81,6 +81,20 @@ export default function VerifyPage() {
         )}
       </GlassCard>
     </div>
+  )
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <GlassCard className="w-full max-w-md text-center">
+          <h1 className="text-3xl font-bold mb-4">Loading...</h1>
+        </GlassCard>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   )
 }
 

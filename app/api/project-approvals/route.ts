@@ -1,5 +1,5 @@
 import { getCurrentUser } from '@/lib/auth';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createServiceRoleClient, createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -132,21 +132,23 @@ export async function PATCH(request: Request) {
     }
 
     // Get approval to check project ownership
-    const { data: approval } = await supabase
+    const { data: approvalData } = await supabase
       .from('project_approvals')
       .select('project_id, projects!inner(organizer_id)')
       .eq('id', approvalId)
       .single()
 
-    if (!approval) {
+    if (!approvalData) {
       return NextResponse.json(
         { error: 'Approval not found' },
         { status: 404 }
       )
     }
 
+    const approval = approvalData as { project_id: string; projects: { organizer_id: string } }
+
     // Only project organizer can approve
-    const project = approval.projects as any
+    const project = approval.projects
     if (project.organizer_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
@@ -160,8 +162,9 @@ export async function PATCH(request: Request) {
       updateData.approved_at = new Date().toISOString()
     }
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('project_approvals')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(updateData)
       .eq('id', approvalId)
       .select(`
@@ -171,6 +174,7 @@ export async function PATCH(request: Request) {
         role_type:role_types(*)
       `)
       .single()
+    const { data, error } = await updateQuery
 
     if (error) throw error
 

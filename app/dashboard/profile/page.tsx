@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import GlassCard from '@/components/GlassCard';
@@ -60,7 +60,7 @@ const tabs: Tab[] = [
   },
 ];
 
-export default function ProfilePage() {
+function ProfileContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
   const [profile, setProfile] = useState<any>(null);
@@ -2388,5 +2388,19 @@ function IndustryModal({
         </form>
       </GlassCard>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen p-8 pt-24">
+        <GlassCard>
+          <h1 className="text-3xl font-bold mb-4">Loading...</h1>
+        </GlassCard>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
   );
 }

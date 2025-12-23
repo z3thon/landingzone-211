@@ -1,11 +1,12 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 
-export default function AuthCodeErrorPage() {
+function AuthCodeErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const errorCode = searchParams.get('error_code')
@@ -94,5 +95,19 @@ export default function AuthCodeErrorPage() {
         </div>
       </GlassCard>
     </div>
+  )
+}
+
+export default function AuthCodeErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <GlassCard className="w-full max-w-md">
+          <h1 className="text-3xl font-bold mb-4">Loading...</h1>
+        </GlassCard>
+      </div>
+    }>
+      <AuthCodeErrorContent />
+    </Suspense>
   )
 }

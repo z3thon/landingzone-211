@@ -82,8 +82,9 @@ export async function POST(request: Request) {
 
     const supabase = createServiceRoleClient();
 
-    const { data, error } = await supabase
+    const insertQuery = supabase
       .from('reviews')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .insert({
         reviewer_profile_id: user.id,
         reviewee_profile_id,
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
         reviewer:profiles!reviews_reviewer_profile_id_fkey(id, name, avatar_url)
       `)
       .single();
+    const { data, error } = await insertQuery;
 
     if (error) {
       console.error('Error creating review:', error);

@@ -68,8 +68,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    const insertQuery = supabase
       .from('voice_channels')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .insert({
         community_id,
         discord_channel_id,
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
         community:communities(id, name, logo_url)
       `)
       .single();
+    const { data, error } = await insertQuery;
 
     if (error) {
       console.error('Error creating voice channel:', error);

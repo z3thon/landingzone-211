@@ -15,15 +15,19 @@ export default async function Layout({
   }
 
   // Get full profile data
-  const profile = await getProfile(user.id);
+  const profileData = await getProfile(user.id);
+  const profile = profileData as { name?: string; avatar_url?: string } | null;
+  
   const supabase = createServiceRoleClient();
 
   // Get token balance
-  const { data: tokenBalance } = await supabase
+  const { data: tokenBalanceData } = await supabase
     .from('token_balances')
     .select('balance_usd')
     .eq('profile_id', user.id)
     .single();
+
+  const tokenBalance = tokenBalanceData as { balance_usd: number } | null;
 
   return (
     <DashboardLayout

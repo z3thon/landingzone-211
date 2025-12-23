@@ -89,11 +89,13 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceRoleClient()
     
     // Check if Discord user already exists in discord_users table
-    const { data: existingDiscordUser } = await supabase
+    const { data: existingDiscordUserData } = await supabase
       .from('discord_users')
       .select('profile_id')
       .eq('discord_user_id', discordUserId)
       .single()
+
+    const existingDiscordUser = existingDiscordUserData as { profile_id: string } | null
 
     let profileId: string
 
@@ -116,14 +118,16 @@ export async function GET(request: NextRequest) {
       // Create profile with all data at once
       const avatarUrl = discordAvatar ? `https://cdn.discordapp.com/avatars/${discordUserId}/${discordAvatar}.png` : null
       
-      const { error: profileError } = await supabase
+      const insertQuery = supabase
         .from('profiles')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .insert({
           id: profileId,
           name: discordUsername || discordEmail?.split('@')[0] || 'User',
           email: discordEmail,
           avatar_url: avatarUrl,
         })
+      const { error: profileError } = await insertQuery
 
       if (profileError) {
         console.error('Error creating profile:', {
@@ -160,10 +164,12 @@ export async function GET(request: NextRequest) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        const { error: updateError } = await supabase
+        const updateQuery = supabase
           .from('profiles')
+          // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
           .update(updateData)
           .eq('id', profileId)
+        const { error: updateError } = await updateQuery
         
         if (updateError) {
           console.error('Error updating profile:', updateError)
@@ -207,16 +213,20 @@ export async function GET(request: NextRequest) {
     let discordError
     if (existingDiscordRecord) {
       // Update existing record
-      const { error } = await supabase
+      const updateQuery = supabase
         .from('discord_users')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .update(discordUserData)
         .eq('discord_user_id', discordUserId)
+      const { error } = await updateQuery
       discordError = error
     } else {
       // Insert new record
-      const { error } = await supabase
+      const insertQuery = supabase
         .from('discord_users')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .insert(discordUserData)
+      const { error } = await insertQuery
       discordError = error
     }
 

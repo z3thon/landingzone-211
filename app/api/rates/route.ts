@@ -63,19 +63,23 @@ export async function POST(request: Request) {
 
     // If this is a default or coaching rate, unset others
     if (body.is_default) {
-      await supabase
+      const updateQuery = supabase
         .from('rates')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .update({ is_default: false })
         .eq('profile_id', user.id)
         .eq('is_default', true)
+      await updateQuery
     }
 
     if (body.is_coaching) {
-      await supabase
+      const updateQuery = supabase
         .from('rates')
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
         .update({ is_coaching: false })
         .eq('profile_id', user.id)
         .eq('is_coaching', true)
+      await updateQuery
     }
 
     const { data, error } = await supabase
@@ -92,22 +96,28 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
+    const typedData = data as { id: string; is_default?: boolean; is_coaching?: boolean; [key: string]: any }
+
     // Update profile references if needed
-    if (data.is_default) {
-      await supabase
+    if (typedData.is_default) {
+      const updateQuery = supabase
         .from('profiles')
-        .update({ default_rate_id: data.id })
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .update({ default_rate_id: typedData.id })
         .eq('id', user.id)
+      await updateQuery
     }
 
-    if (data.is_coaching) {
-      await supabase
+    if (typedData.is_coaching) {
+      const updateQuery = supabase
         .from('profiles')
-        .update({ coaching_rate_id: data.id })
+        // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
+        .update({ coaching_rate_id: typedData.id })
         .eq('id', user.id)
+      await updateQuery
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(typedData, { status: 201 })
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message },
@@ -141,11 +151,13 @@ export async function DELETE(request: Request) {
     }
 
     // Check ownership
-    const { data: rate } = await supabase
+    const { data: rateData } = await supabase
       .from('rates')
       .select('profile_id')
       .eq('id', rateId)
       .single()
+
+    const rate = rateData as { profile_id: string } | null
 
     if (!rate || rate.profile_id !== user.id) {
       return NextResponse.json(

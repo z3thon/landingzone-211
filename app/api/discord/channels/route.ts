@@ -45,11 +45,12 @@ export async function GET(request: Request) {
       .eq('profile_id', user.id)
       .single();
 
-    if (discordUser?.access_token) {
+    if (discordUser && (discordUser as { access_token: string | null }).access_token) {
       // Check if user is a member of the guild
+      const typedDiscordUser = discordUser as { access_token: string };
       const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
         headers: {
-          'Authorization': `Bearer ${discordUser.access_token}`,
+          'Authorization': `Bearer ${typedDiscordUser.access_token}`,
         },
       });
 
@@ -115,7 +116,7 @@ export async function GET(request: Request) {
       
       return NextResponse.json({ 
         error: 'Failed to fetch Discord channels',
-        details: errorText,
+        code: 'DISCORD_API_ERROR',
       }, { status: 500 });
     }
 
@@ -171,11 +172,10 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error('Get channels API error:', error);
-    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    // Don't expose internal error details to client
     return NextResponse.json(
       {
         error: 'Internal server error',
-        details: errorMessage,
         code: 'INTERNAL_ERROR',
       },
       { status: 500 }

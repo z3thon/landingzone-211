@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       .eq('community_id', community_id)
       .single();
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (!membership || !['owner', 'admin'].includes((membership as { role: string }).role)) {
       return NextResponse.json(
         { error: 'You must be an admin or owner of this community' },
         { status: 403 }
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     // Use provided discord_server_id or existing one, or fail if neither exists
-    const guildId = discord_server_id || community.discord_server_id;
+    const guildId = discord_server_id || (community as { discord_server_id: string | null }).discord_server_id;
     
     if (!guildId) {
       return NextResponse.json(
@@ -109,11 +109,13 @@ export async function POST(request: Request) {
     }
 
     // Update discord_server_id if it was provided and different
-    if (discord_server_id && discord_server_id !== community.discord_server_id) {
-      const { error: updateError } = await supabase
+    if (discord_server_id && discord_server_id !== (community as { discord_server_id: string | null }).discord_server_id) {
+      const updateQuery = supabase
         .from('communities')
+        // @ts-expect-error - Supabase type inference issue with Next.js 16
         .update({ discord_server_id: discord_server_id })
         .eq('id', community_id);
+      const { error: updateError } = await updateQuery;
 
       if (updateError) {
         console.error('Error updating discord_server_id:', updateError);
@@ -216,8 +218,9 @@ export async function POST(request: Request) {
     };
     
     // Try to update bot columns if they exist
-    const updateResult = await supabase
+    const updateQuery = supabase
       .from('communities')
+      // @ts-expect-error - Supabase type inference issue with Next.js 16
       .update({
         discord_server_id: guildId,
         coach_role_id: repairResult.roleId,
@@ -225,6 +228,7 @@ export async function POST(request: Request) {
         bot_enabled: true,
       })
       .eq('id', community_id);
+    const updateResult = await updateQuery;
     
     // If columns don't exist (PostgreSQL 42703 or Supabase PGRST204), just update discord_server_id
     const isColumnMissingError = updateResult.error && (
@@ -235,10 +239,12 @@ export async function POST(request: Request) {
     );
     
     if (isColumnMissingError) {
-      const simpleUpdate = await supabase
+      const simpleUpdateQuery = supabase
         .from('communities')
+        // @ts-expect-error - Supabase type inference issue with Next.js 16
         .update({ discord_server_id: guildId })
         .eq('id', community_id);
+      const simpleUpdate = await simpleUpdateQuery;
       
       if (simpleUpdate.error) {
         console.error('Error updating community after repair:', simpleUpdate.error);

@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { community_id, visible } = body;
 
@@ -27,7 +28,7 @@ export async function PUT(
     const { data: skill } = await supabase
       .from('skills')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('profile_id', user.id)
       .single();
 
@@ -48,18 +49,20 @@ export async function PUT(
     }
 
     // Upsert visibility setting
-    const { data, error } = await supabase
+    const upsertQuery = supabase
       .from('community_skill_visibility')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .upsert({
         profile_id: user.id,
         community_id,
-        skill_id: params.id,
+        skill_id: id,
         visible,
       }, {
         onConflict: 'profile_id,community_id,skill_id',
       })
       .select()
       .single();
+    const { data, error } = await upsertQuery;
 
     if (error) {
       console.error('Error updating visibility:', error);

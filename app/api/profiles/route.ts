@@ -108,12 +108,14 @@ export async function PATCH(request: Request) {
       )
     }
 
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('profiles')
+      // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
       .update(body)
       .eq('id', profileId)
       .select()
       .single()
+    const { data, error } = await updateQuery
 
     if (error) throw error
 

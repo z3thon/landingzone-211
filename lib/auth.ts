@@ -59,14 +59,16 @@ export async function createProfile(userId: string, profileData: {
   email?: string;
 }) {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+  const insertQuery = supabase
     .from('profiles')
+    // @ts-expect-error - Supabase type inference issue with TypeScript 5.x strict mode
     .insert({
       id: userId,
       name: profileData.name,
       email: profileData.email,
     })
     .select()
+  const { data, error } = await insertQuery
     .single();
 
   if (error) {
