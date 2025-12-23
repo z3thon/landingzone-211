@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { getCurrentUser } from '@/lib/auth';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
