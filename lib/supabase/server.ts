@@ -22,3 +22,8 @@ export function createServiceRoleClient() {
   })
 }
 
+/**
+ * Alias for createServiceRoleClient for backward compatibility
+ */
+export const createClient = createServiceRoleClient
+

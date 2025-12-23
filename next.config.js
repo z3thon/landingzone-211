@@ -8,8 +8,27 @@ const nextConfig = {
       },
     ],
   },
-  // Turbopack configuration (Next.js 16 uses Turbopack by default)
-  turbopack: {},
+  // Use webpack for server-side builds to handle Discord.js dependencies
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Exclude problematic packages from server-side bundle
+      config.externals = config.externals || []
+      config.externals.push({
+        'zlib-sync': 'commonjs zlib-sync',
+        'bufferutil': 'commonjs bufferutil',
+        'utf-8-validate': 'commonjs utf-8-validate',
+      })
+    }
+    return config
+  },
+  // Disable Turbopack for production builds to avoid Discord.js issues
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        'zlib-sync': false,
+      },
+    },
+  },
 }
 
 module.exports = nextConfig
